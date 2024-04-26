@@ -1,13 +1,12 @@
 import logging
 import os
 import pathlib
-import typing as t
 
 from pydantic import BaseModel
 import subprocess
 import shutil
 
-from hermes.commands.harvest.base import HermesHarvestPlugin, HermesHarvestCommand
+from hermes.commands.harvest.base import HermesHarvestPlugin
 from hermes.model.errors import HermesValidationError
 
 from hermes_git.util.git_contributor_data import ContributorData
@@ -90,11 +89,10 @@ class GitHarvestPlugin(HermesHarvestPlugin):
         self._audit_contributors(git_contributors, logging.getLogger('audit.git'))
 
         data = dict()
-        data.update({"contributor": [[contributor.to_codemeta() for contributor in git_contributors._all],
-                                     {"git_branch": git_branch}]})
+        data.update({"contributor": [contributor.to_codemeta() for contributor in git_contributors._all]})
         data.update({"hermes:gitBranch": git_branch})
 
-        return data, {}
+        return data, {"gitBranch": git_branch}
 
     def _audit_contributors(self, contributors, audit_log: logging.Logger):
         # Collect all authors that have ambiguous data
