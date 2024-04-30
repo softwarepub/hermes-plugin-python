@@ -1,18 +1,16 @@
 import logging
 import os
 import pathlib
+import typing as t
 
 from pydantic import BaseModel
 import subprocess
 import shutil
 
-from hermes.commands.harvest.base import HermesHarvestPlugin
-from hermes.model.errors import HermesValidationError
+from hermes.commands.harvest.base import HermesHarvestCommand, HermesHarvestPlugin
 
 from hermes_git.util.git_contributor_data import ContributorData
 from hermes_git.util.git_node_register import NodeRegister
-
-_log = logging.getLogger('cli.harvest.git')
 
 
 # TODO: can and should we get this somehow?
@@ -28,53 +26,44 @@ _GIT_ARGS = []
 #      Clean up and refactor to use hermes.model instead
 
 class GitHarvestSettings(BaseModel):
-    from_branch: str = 'main'
+    from_branch: str = 'HEAD'
 
 
 class GitHarvestPlugin(HermesHarvestPlugin):
     settings_class = GitHarvestSettings
 
-    def __call__(self, command):
-        """
-                   Implementation of a harvester that provides autor data from Git.
+    def __init__(self):
+        self.git_exe = shutil.which('git')
+        if not self.git_exe:
+            raise RuntimeError('Git not available!')
 
-                   :param click_ctx: Click context that this command was run inside (might be used to extract command line arguments).
-                   :param ctx: The harvesting context that should contain the provided metadata.
-               """
-        _log = logging.getLogger('cli.harvest.git')
-        audit_log = logging.getLogger('audit.cff')
-        audit_log.info('')
-        audit_log.info("## Git History")
+    def _run_git(self, subcommand: str, *args: str) -> t.TextIO:
+        proc = subprocess.run([self.git_exe, subcommand, *args, *_GIT_ARGS], capture_output=True)
+        if proc.returncode != 0:
+            # TODO better suited exception with stdout / stderr output
+            raise RuntimeError(f"`git {subcommand}` command failed with code {proc.returncode}")
+        return proc.stdout
 
-        _log.debug(". Get history of currently checked-out branch")
+    def __call__(self, command: HermesHarvestCommand):
+        """Implementation of a harvester that provides autor data from Git."""
 
         git_authors = NodeRegister(ContributorData, 'email', 'name', email=str.upper)
         git_committers = NodeRegister(ContributorData, 'email', 'name', email=str.upper)
-
-        git_exe = shutil.which('git')
-        if not git_exe:
-            raise RuntimeError('Git not available!')
 
         path = command.args.path
         old_path = pathlib.Path.cwd()
         if path != old_path:
             os.chdir(path)
 
-        p = subprocess.run([git_exe, "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True)
-        if p.returncode:
-            raise HermesValidationError(f"`git branch` command failed with code {p.returncode}: "
-                                        f"'{p.stderr.decode(SHELL_ENCODING).rstrip()}'!")
+        stdout = self._run_git("rev-parse", "--abbrev-ref", command.settings.git.from_branch)
+        git_branch = stdout.decode(SHELL_ENCODING).strip()
 
-        git_branch = p.stdout.decode(SHELL_ENCODING).strip()
         # TODO: should we warn or error if the HEAD is detached?
 
-        p = subprocess.run([git_exe, "log", f"--pretty={_GIT_SEP.join(_GIT_FORMAT)}"] + _GIT_ARGS, capture_output=True)
-        if p.returncode:
-            raise HermesValidationError(f"`git log` command failed with code {p.returncode}: "
-                                        f"'{p.stderr.decode(SHELL_ENCODING).rstrip()}'!")
+        stdout = self._run_git("log", f"--pretty={_GIT_SEP.join(_GIT_FORMAT)}")
+        git_log = stdout.decode(SHELL_ENCODING).split('\n')
 
-        log = p.stdout.decode(SHELL_ENCODING).split('\n')
-        for line in log:
+        for line in git_log:
             try:
                 # a = author, c = committer
                 a_name, a_email, a_timestamp, c_name, c_email, c_timestamp = line.split(_GIT_SEP)
@@ -85,7 +74,6 @@ class GitHarvestPlugin(HermesHarvestPlugin):
             git_committers.update(email=c_email, name=c_name, timestamp=c_timestamp, role=None)
 
         git_contributors = self._merge_contributors(git_authors, git_committers)
-
         self._audit_contributors(git_contributors, logging.getLogger('audit.git'))
 
         data = dict()
