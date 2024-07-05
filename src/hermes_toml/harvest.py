@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from hermes.commands.harvest.base import HermesHarvestCommand, HermesHarvestPlugin
 
 class TomlHarvestSettings(BaseModel):
-    from_branch: str = 'HEAD'
+    filename: str = 'pyproject.toml'
 
 
 class TomlHarvestPlugin(HermesHarvestPlugin):
@@ -19,16 +19,7 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         if path != old_path:
             os.chdir(path)
 
-        toml_file_list = []
-        for file in os.listdir():
-            if os.path.isfile(file) and file[-5:] == ".toml":
-                if file[-11:] == "hermes.toml":
-                    continue
-                toml_file_list.append(file)
-
-        data = dict()
-        for file in toml_file_list:
-            data.update(read_from_toml(file))
+        data = read_from_toml(command.settings.toml.filename)
 
         return data, dict()
 
@@ -51,18 +42,10 @@ def read_from_toml(file):
             if not project.get(field2) is None:
                 if field2 == "requires-python":
                     ret_data[field1] = "Python " + project[field2]
+                elif field1 in ["author", "maintainer"]:
+                    ret_data[field1] = handle_person_in_unknown_format(project[field2])
                 else:
                     ret_data[field1] = project[field2]
-                if field1 in ["author", "maintainer"]:
-                    if isinstance(ret_data[field1], list):
-                        for item in ret_data[field1]:
-                            if isinstance(item, str):
-                                raise ValueError("Person is not a string")
-                            item["@type"] = "Person"
-                    else:
-                        if isinstance(ret_data[field1], str):
-                            raise ValueError("Person is not a string")
-                        ret_data[field1]["@type"] = "Person"
 
     poetry = data.get("tool.poetry")
     if not poetry is None:
@@ -71,3 +54,27 @@ def read_from_toml(file):
                 ret_data[field1] = poetry[field2]
 
     return ret_data
+
+def handle_person_in_unknown_format(persons):
+    if isinstance(persons, list):
+        return_list = []
+        for person in persons:
+            if isinstance(person, dict):
+                if check_if_correct_keys(person):
+                    return_list.append(person)
+            else:
+                raise ValueError("A person must be a dict.")
+        return return_list
+    else:
+        if isinstance(person, dict):
+            if check_if_correct_keys(person):
+                return person
+        else:
+            raise ValueError("A person must be a dict.")
+                
+def check_if_correct_keys(person):
+    allowed_keys = ["givenName", "lastName", "email", "@id"]
+    for key in person.keys():
+        if not key in allowed_keys:
+            raise ValueError(f"{key} is not allowed for a person.")
+    return True
