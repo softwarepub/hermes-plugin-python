@@ -21,14 +21,14 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
 
         data = read_from_toml(command.settings.toml.filename)
 
-        return data, dict()
+        return data, {}
 
 def read_from_toml(file):
     data  = toml.load(file)
-    ret_data = dict()
+    ret_data = {}
     field_to_property_mapping_in_project = [
         ("name", "name"), ("version", "version"), ("description", "description"),
-        ("runtimePlatform", "requires-python"), ("author", "authors"), 
+        ("runtimePlatform", "requires-python"), ("author", "authors"),
         ("maintainer", "maintainers"), ("keywords", "keywords")
     ]
     field_to_property_mapping_in_poetry = [
@@ -65,13 +65,12 @@ def handle_person_in_unknown_format(persons):
             else:
                 raise ValueError("A person must be a dict.")
         return return_list
+    if isinstance(persons, dict):
+        if check_if_correct_keys(persons):
+            return persons
     else:
-        if isinstance(person, dict):
-            if check_if_correct_keys(person):
-                return person
-        else:
-            raise ValueError("A person must be a dict.")
-                
+        raise ValueError("A person must be a dict.")
+
 def check_if_correct_keys(person):
     allowed_keys = ["givenName", "lastName", "email", "@id"]
     for key in person.keys():
