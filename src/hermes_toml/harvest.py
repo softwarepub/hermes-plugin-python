@@ -1,24 +1,17 @@
-import logging
 import os
 import pathlib
 import toml
 
 from pydantic import BaseModel
-import shutil
 
 from hermes.commands.harvest.base import HermesHarvestCommand, HermesHarvestPlugin
 
-class GitHarvestSettings(BaseModel):
+class TomlHarvestSettings(BaseModel):
     from_branch: str = 'HEAD'
 
 
-class GitHarvestPlugin(HermesHarvestPlugin):
-    settings_class = GitHarvestSettings
-
-    #def __init__(self):
-    #    self.git_exe = shutil.which('git')
-    #    if not self.git_exe:
-    #        raise RuntimeError('Git not available!')
+class TomlHarvestPlugin(HermesHarvestPlugin):
+    settings_class = TomlHarvestSettings
 
     def __call__(self, command: HermesHarvestCommand):
         path = command.args.path
@@ -76,4 +69,5 @@ def read_from_toml(file):
         for (field1, field2) in field_to_property_mapping_in_poetry:
             if not poetry.get(field2) is None:
                 ret_data[field1] = poetry[field2]
+
     return ret_data
