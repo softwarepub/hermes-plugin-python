@@ -56,6 +56,8 @@ sphinxcontrib-mermaid="^0.8.1"
 sphinx-togglebutton="^0.3.2"
 
 [tool.poetry.plugins."hermes.harvest"]
+cff = "hermes.commands.harvest.cff:CffHarvestPlugin"
+codemeta = "hermes.commands.harvest.codemeta:CodeMetaHarvestPlugin"
 toml = "hermes_toml.harvest:TomlHarvestPlugin"
 
 [build-system]
