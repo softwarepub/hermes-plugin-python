@@ -83,28 +83,12 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
 
                 elif field1 in ["author", "maintainer"]:
                     #the integrity of the format of the person(s) is assured
-                    temp = cls.handle_person_in_unknown_format(table[field2])
+                    persons = cls.handle_person_in_unknown_format(table[field2])
 
-                    #check if it is one person in the right format or none
-                    if isinstance(temp, dict) and len(temp.keys()) > 0:
-                        #store the persons data and add the @type field
-                        temp["@type"] = "Person"
-                        ret_data[field1] = temp
-
-                    #check if how many persons are in the list
-                    elif isinstance(temp, list):
-                        if len(temp) > 1:
-                            #add for every person the @type field
-                            for person in temp:
-                                person["@type"] = "Person"
-
-                            #store the data of the persons
-                            ret_data[field1] = temp
-
-                        elif len(temp) == 1:
-                            #store the persons data and add the @type field
-                            temp[0]["@type"] = "Person"
-                            ret_data[field1] = temp[0]
+                    #store the (corrected) format of the person(s) data
+                    persons = cls.handle_differnt_possibilities_for_persons(persons)
+                    if not persons is None:
+                        ret_data[field1] = persons
 
                 else:
                     #add the data of a field that needs no processing
@@ -116,6 +100,39 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
 
         #return the important data of the table
         return ret_data
+
+    @classmethod
+    def handle_differnt_possibilities_for_persons(cls, persons):
+        #check if it is one person in the right format or none
+        if isinstance(persons, dict):
+            if len(persons.keys()) > 0:
+                #add the @type field
+                persons["@type"] = "Person"
+
+            else:
+                #set to None if there is no persons data to store
+                persons = None
+
+        #check if how many persons are in the list
+        elif isinstance(persons, list):
+            if len(persons) > 1:
+                #add for every person the @type field
+                for person in persons:
+                    person["@type"] = "Person"
+
+            elif len(persons) == 1:
+                #add the @type field
+                persons[0]["@type"] = "Person"
+
+                #remove the list as it is only one peron inside
+                persons = persons[0]
+
+            else:
+                #set to None if there is no persons data to store
+                persons = None
+
+        #return the persons in the (corrected) format
+        return persons
 
     @classmethod
     def handle_person_in_unknown_format(cls, persons):
