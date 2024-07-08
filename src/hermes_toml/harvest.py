@@ -1,3 +1,5 @@
+"""A hermes harvest plugin that harvests the .toml file of the project"""
+
 import os
 import pathlib
 import toml
@@ -30,6 +32,8 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
     allowed_keys_for_person = ["givenName", "lastName", "email", "@id", "@type"]
 
     def __call__(self, command: HermesHarvestCommand):
+        """start of the process of harvesting the .toml file"""
+
         #set the working directory to the correct location
         path = command.args.path
         old_path = pathlib.Path.cwd()
@@ -48,6 +52,8 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
 
     @classmethod
     def read_from_toml(cls, file):
+        """Read and process the data inside the .toml file"""
+
         #load the toml file as a dictionary
         data  = toml.load(file)
 
@@ -70,6 +76,8 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
 
     @classmethod
     def read_from_one_table(cls, table, mapping):
+        """Read and process the data of one table inside the .toml file"""
+
         ret_data = {}
 
         #iterate over each mapping
@@ -86,7 +94,7 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
                     persons = cls.handle_person_in_unknown_format(table[field2])
 
                     #store the (corrected) format of the person(s) data
-                    persons = cls.handle_differnt_possibilities_for_persons(persons)
+                    persons = cls.handle_different_possibilities_for_persons(persons)
                     if not persons is None:
                         ret_data[field1] = persons
 
@@ -102,7 +110,9 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         return ret_data
 
     @classmethod
-    def handle_differnt_possibilities_for_persons(cls, persons):
+    def handle_different_possibilities_for_persons(cls, persons):
+        """Simplify the data structure of the persons"""
+
         #check if it is one person in the right format or none
         if isinstance(persons, dict):
             if len(persons.keys()) > 0:
@@ -136,6 +146,8 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
 
     @classmethod
     def handle_person_in_unknown_format(cls, persons):
+        """Process the persons in the unkown format"""
+
         #check wheter it is one or are more persons
         if isinstance(persons, list):
             #in case of potentially at least two persons
@@ -170,6 +182,8 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
 
     @classmethod
     def remove_forbidden_keys(cls, person):
+        """Remove forbidden keys from the person-data-dictionary"""
+
         #the keys are extracted as the dictionary may be resized
         keys = list(person.keys())
 
