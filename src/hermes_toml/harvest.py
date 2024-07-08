@@ -4,6 +4,7 @@ import os
 import pathlib
 import toml
 
+from email.utils import getaddresses
 from pydantic import BaseModel
 
 from hermes.commands.harvest.base import HermesHarvestCommand, HermesHarvestPlugin
@@ -29,7 +30,7 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
             ("codeRepository", "repository"), ("keywords", "keywords")
         ]
     }
-    allowed_keys_for_person = ["givenName", "lastName", "email", "@id", "@type"]
+    allowed_keys_for_person = ["givenName", "lastName", "email", "@id", "@type", "name"]
 
     def __call__(self, command: HermesHarvestCommand):
         """start of the process of harvesting the .toml file"""
@@ -173,9 +174,17 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
                     if len(temp.keys()) > 0:
                         return_list.append(temp)
 
+                elif isinstance(person, str):
+                    #try to parse the string
+                    try:
+                        [(name, email)] = getaddresses([person])
+                        return cls.remove_forbidden_keys({"name":name, "email":email})
+                    except ValueError:
+                        raise ValueError("Wrong string format for name (and email).")
+
                 else:
                     #if the person isn't a dictionary raise an Error
-                    raise ValueError("A person must be a dict.")
+                    raise ValueError("A person must be a dict or special string.")
 
             #return the person(s)
             return return_list
@@ -187,8 +196,16 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
             #the 'person' may be an empty dictionary if all keys are incorrect
             return cls.remove_forbidden_keys(persons)
 
+        elif isinstance(persons, str):
+            #try to parse the string
+            try:
+                [(name, email)] = getaddresses([persons])
+                return cls.remove_forbidden_keys({"name":name, "email":email})
+            except ValueError:
+                raise ValueError("Wrong string format for name (and email).")
+
         #raise an error if the persons data is not in the right format
-        raise ValueError("A person must be a dict.")
+        raise ValueError("A person must be a dict or special string.")
 
     @classmethod
     def remove_forbidden_keys(cls, person):
