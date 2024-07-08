@@ -23,7 +23,7 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
             ("runtimePlatform", "requires-python"), ("author", "authors"),
             ("maintainer", "maintainers"), ("keywords", "keywords")
         ],
-        "tool.poetry": [
+        "poetry": [
             ("name", "name"), ("version", "version"), ("description", "description"),
             ("author", "authors"), ("maintainer", "maintainers"), ("url", "homepage"),
             ("codeRepository", "repository"), ("keywords", "keywords")
@@ -64,8 +64,18 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         #if more than one table existis raise an error as
         #the information could be overlapping and there should only be one table
         for table, mapping in cls.table_with_mapping.items():
-            table = data.get(table)
+            #choose correct dictionary representing the table
+            if table == "project":
+                table = data.get(table)
+            else:
+                temp = data.get("tool")
+                if temp is None:
+                    continue
+                table = temp.get(table)
+
+            #check if the table exists
             if not table is None:
+                #if the table exists
                 if len(ret_data.keys()) != 0:
                     raise ValueError("Both project and tool.poetry table exist.")
                 #read the data from the table

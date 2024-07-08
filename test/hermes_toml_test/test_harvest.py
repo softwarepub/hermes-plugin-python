@@ -34,7 +34,7 @@ def toml_file(tmp_path_factory):
 
 @pytest.mark.parametrize("in_data, out_data", [
     ({}, {}), ({"project": {"name":"a"}}, {"name": "a"}),
-    ({"tool.poetry": {"name":"a"}}, {"name": "a"}),
+    ({"tool": {"poetry": {"name":"a"}}}, {"name": "a"}),
     ({"project":{"name":"a"}, "a":{"b":"c"}}, {"name":"a"}),
     ({"project":{"name":"a", "requires-python":">3.7"}}, {"name":"a", "runtimePlatform":"Python >3.7"}),
     ({"project":{"authors":{"givenName":"a"}}}, {"author":{"givenName":"a", "@type":"Person"}}),
@@ -49,9 +49,9 @@ def test_read_from_toml(in_data, out_data, toml_file):
     assert TomlHarvestPlugin.read_from_toml(str(toml_file)) == out_data
 
 @pytest.mark.parametrize("in_data", [
-    ({"project": {"authors":"a"}}), ({"tool.poetry": {"authors":"a"}}),
-    ({"project": {"authors":["a"]}}), ({"tool.poetry": {"authors":["a"]}}),
-    ({"project": {"name":"a"}, "tool.poetry": {"name":"a"}})
+    ({"project": {"authors":"a"}}), ({"tool": {"poetry": {"authors":"a"}}}),
+    ({"project": {"authors":["a"]}}), ({"tool": {"poetry": {"authors":["a"]}}}),
+    ({"project": {"name":"a"}, "tool": {"poetry": {"name":"a"}}})
 ])
 def test_read_from_toml_with_error(in_data, toml_file):
     toml.dump(in_data, open(toml_file, "w", encoding="utf8"))
