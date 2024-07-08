@@ -45,21 +45,27 @@ def read_from_toml(file):
                 elif field1 in ["author", "maintainer"]:
                     temp = handle_person_in_unknown_format(project[field2])
                     if isinstance(temp, dict) and len(temp.keys()) > 0:
+                        temp["@type"] = "Person"
                         ret_data[field1] = temp
                     elif isinstance(temp, list):
                         if len(temp) > 1:
+                            for person in temp:
+                                person["@type"] = "Person"
                             ret_data[field1] = temp
                         elif len(temp) == 1:
+                            temp[0]["@type"] = "Person"
                             ret_data[field1] = temp[0]
                 else:
                     ret_data[field1] = project[field2]
 
     poetry = data.get("tool.poetry")
     if not poetry is None:
+        if not project is None:
+            raise ValueError("Both project and tool.poetry table exist.")
         for (field1, field2) in field_to_property_mapping_in_poetry:
             if not poetry.get(field2) is None:
                 if field1 in ["author", "maintainer"]:
-                    temp = handle_person_in_unknown_format(project[field2])
+                    temp = handle_person_in_unknown_format(poetry[field2])
                     if isinstance(temp, dict) and len(temp.keys()) > 0:
                         ret_data[field1] = temp
                     elif isinstance(temp, list):
@@ -85,8 +91,7 @@ def handle_person_in_unknown_format(persons):
         return return_list
     if isinstance(persons, dict):
         return remove_forbidden_keys(persons)
-    else:
-        raise ValueError("A person must be a dict.")
+    raise ValueError("A person must be a dict.")
 
 def remove_forbidden_keys(person):
     allowed_keys = ["givenName", "lastName", "email", "@id", "@type"]
