@@ -43,7 +43,14 @@ def read_from_toml(file):
                 if field2 == "requires-python":
                     ret_data[field1] = "Python " + project[field2]
                 elif field1 in ["author", "maintainer"]:
-                    ret_data[field1] = handle_person_in_unknown_format(project[field2])
+                    temp = handle_person_in_unknown_format(project[field2])
+                    if isinstance(temp, dict) and len(temp.keys()) > 0:
+                        ret_data[field1] = temp
+                    elif isinstance(temp, list):
+                        if len(temp) > 1:
+                            ret_data[field1] = temp
+                        elif len(temp) == 1:
+                            ret_data[field1] = temp[0]
                 else:
                     ret_data[field1] = project[field2]
 
@@ -51,7 +58,17 @@ def read_from_toml(file):
     if not poetry is None:
         for (field1, field2) in field_to_property_mapping_in_poetry:
             if not poetry.get(field2) is None:
-                ret_data[field1] = poetry[field2]
+                if field1 in ["author", "maintainer"]:
+                    temp = handle_person_in_unknown_format(project[field2])
+                    if isinstance(temp, dict) and len(temp.keys()) > 0:
+                        ret_data[field1] = temp
+                    elif isinstance(temp, list):
+                        if len(temp) > 1:
+                            ret_data[field1] = temp
+                        elif len(temp) == 1:
+                            ret_data[field1] = temp[0]
+                else:
+                    ret_data[field1] = poetry[field2]
 
     return ret_data
 
@@ -60,20 +77,21 @@ def handle_person_in_unknown_format(persons):
         return_list = []
         for person in persons:
             if isinstance(person, dict):
-                if check_if_correct_keys(person):
-                    return_list.append(person)
+                temp = remove_forbidden_keys(person)
+                if len(temp.keys()) > 0:
+                    return_list.append(temp)
             else:
                 raise ValueError("A person must be a dict.")
         return return_list
     if isinstance(persons, dict):
-        if check_if_correct_keys(persons):
-            return persons
+        return remove_forbidden_keys(persons)
     else:
         raise ValueError("A person must be a dict.")
 
-def check_if_correct_keys(person):
-    allowed_keys = ["givenName", "lastName", "email", "@id"]
-    for key in person.keys():
+def remove_forbidden_keys(person):
+    allowed_keys = ["givenName", "lastName", "email", "@id", "@type"]
+    keys = list(person.keys())
+    for key in keys:
         if not key in allowed_keys:
-            raise ValueError(f"{key} is not allowed for a person.")
-    return True
+            del person[key]
+    return person
