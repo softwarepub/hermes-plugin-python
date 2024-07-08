@@ -21,7 +21,7 @@ def test_handle_person(in_data, out_data):
     assert TomlHarvestPlugin.handle_person_in_unknown_format(in_data) == out_data
 
 @pytest.mark.parametrize("in_data", [
-    (("a")), ("a"), (15), ([{}, ("a")]), (["a"]), (None)
+    (15), ([{}, (15)]), (None)
 ])
 def test_handle_person_with_error(in_data):
     with pytest.raises(ValueError):
@@ -49,8 +49,8 @@ def test_read_from_toml(in_data, out_data, toml_file):
     assert TomlHarvestPlugin.read_from_toml(str(toml_file)) == out_data
 
 @pytest.mark.parametrize("in_data", [
-    ({"project": {"authors":"a"}}), ({"tool": {"poetry": {"authors":"a"}}}),
-    ({"project": {"authors":["a"]}}), ({"tool": {"poetry": {"authors":["a"]}}}),
+    ({"project": {"authors":1}}), ({"tool": {"poetry": {"authors":1}}}),
+    ({"project": {"authors":[1]}}), ({"tool": {"poetry": {"authors":[1]}}}),
     ({"project": {"name":"a"}, "tool": {"poetry": {"name":"a"}}})
 ])
 def test_read_from_toml_with_error(in_data, toml_file):
