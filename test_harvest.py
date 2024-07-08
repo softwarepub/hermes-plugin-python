@@ -1,13 +1,13 @@
 import pytest
 import toml
-from hermes_toml import harvest
+from hermes_toml.harvest import TomlHarvestPlugin
 
 @pytest.mark.parametrize("in_data, out_data", [
     ({"givenName": "Tom"}, {"givenName": "Tom"}), ({"a": "b"}, {}),
     ({"givenName": "Tom","a": "b"}, {"givenName": "Tom"}), ({}, {})
 ])
 def test_remove_forbidden_keys(in_data, out_data):
-    assert harvest.remove_forbidden_keys(in_data) == out_data
+    assert TomlHarvestPlugin.remove_forbidden_keys(in_data) == out_data
 
 @pytest.mark.parametrize("in_data, out_data", [
     ({"givenName": "Tom"}, {"givenName": "Tom"}), ({"a": "b"}, {}),
@@ -18,14 +18,14 @@ def test_remove_forbidden_keys(in_data, out_data):
     ([{}], []), ([{"b":"c"}], []), ([], [])
 ])
 def test_handle_person(in_data, out_data):
-    assert harvest.handle_person_in_unknown_format(in_data) == out_data
+    assert TomlHarvestPlugin.handle_person_in_unknown_format(in_data) == out_data
 
 @pytest.mark.parametrize("in_data", [
     (("a")), ("a"), (15), ([{}, ("a")]), (["a"]), (None)
 ])
 def test_handle_person_with_error(in_data):
     with pytest.raises(ValueError):
-        harvest.handle_person_in_unknown_format(in_data)
+        TomlHarvestPlugin.handle_person_in_unknown_format(in_data)
 
 @pytest.fixture(scope="session")
 def toml_file(tmp_path_factory):
@@ -46,7 +46,7 @@ def toml_file(tmp_path_factory):
 ])
 def test_read_from_toml(in_data, out_data, toml_file):
     toml.dump(in_data, open(toml_file, "w", encoding="utf8"))
-    assert harvest.read_from_toml(str(toml_file)) == out_data
+    assert TomlHarvestPlugin.read_from_toml(str(toml_file)) == out_data
 
 @pytest.mark.parametrize("in_data", [
     ({"project": {"authors":"a"}}), ({"tool.poetry": {"authors":"a"}}),
@@ -56,4 +56,4 @@ def test_read_from_toml(in_data, out_data, toml_file):
 def test_read_from_toml_with_error(in_data, toml_file):
     toml.dump(in_data, open(toml_file, "w", encoding="utf8"))
     with pytest.raises(ValueError):
-        harvest.read_from_toml(str(toml_file))
+        TomlHarvestPlugin.read_from_toml(str(toml_file))
