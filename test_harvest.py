@@ -1,27 +1,59 @@
 import pytest
+import toml
 from hermes_toml import harvest
 
-@pytest.mark.parametrize("input, output", [
-    ({"givenName": "Tom"}, {"givenName": "Tom"}), ({"a": "b"}, {}), 
+@pytest.mark.parametrize("in_data, out_data", [
+    ({"givenName": "Tom"}, {"givenName": "Tom"}), ({"a": "b"}, {}),
     ({"givenName": "Tom","a": "b"}, {"givenName": "Tom"}), ({}, {})
 ])
-def test_remove_forbidden_keys(input, output):
-    assert harvest.remove_forbidden_keys(input) == output
+def test_remove_forbidden_keys(in_data, out_data):
+    assert harvest.remove_forbidden_keys(in_data) == out_data
 
-@pytest.mark.parametrize("input, output", [
-    ({"givenName": "Tom"}, {"givenName": "Tom"}), ({"a": "b"}, {}), 
+@pytest.mark.parametrize("in_data, out_data", [
+    ({"givenName": "Tom"}, {"givenName": "Tom"}), ({"a": "b"}, {}),
     ({"givenName": "Tom","a": "b"}, {"givenName": "Tom"}), ({}, {}),
-    ([{"givenName": "Tom"}], [{"givenName": "Tom"}]), 
+    ([{"givenName": "Tom"}], [{"givenName": "Tom"}]),
     ([{"givenName": "Tom"}, {"a": "b"}], [{"givenName": "Tom"}]),
     ([{}, {"givenName": "Tom"}, {"a": "b"}], [{"givenName": "Tom"}]),
     ([{}], []), ([{"b":"c"}], []), ([], [])
 ])
-def test_handle_person(input, output):
-    assert harvest.handle_person_in_unknown_format(input) == output
+def test_handle_person(in_data, out_data):
+    assert harvest.handle_person_in_unknown_format(in_data) == out_data
 
-@pytest.mark.parametrize("input", [
-    (("a")), ("a"), (15), ([{}, ("a")]), (["a"])
+@pytest.mark.parametrize("in_data", [
+    (("a")), ("a"), (15), ([{}, ("a")]), (["a"]), (None)
 ])
-def test_handle_person_with_error(input):
+def test_handle_person_with_error(in_data):
     with pytest.raises(ValueError):
-        harvest.handle_person_in_unknown_format(input)
+        harvest.handle_person_in_unknown_format(in_data)
+
+@pytest.fixture(scope="session")
+def toml_file(tmp_path_factory):
+    fn = tmp_path_factory.mktemp("data") / "test.toml"
+    return fn
+
+@pytest.mark.parametrize("in_data, out_data", [
+    ({}, {}), ({"project": {"name":"a"}}, {"name": "a"}),
+    ({"tool.poetry": {"name":"a"}}, {"name": "a"}),
+    ({"project":{"name":"a"}, "a":{"b":"c"}}, {"name":"a"}),
+    ({"project":{"name":"a", "requires-python":">3.7"}}, {"name":"a", "runtimePlatform":"Python >3.7"}),
+    ({"project":{"authors":{"givenName":"a"}}}, {"author":{"givenName":"a", "@type":"Person"}}),
+    ({"project":{"authors":[{"givenName":"a"}, {"givenName":"a"}]}}, {"author":[{"givenName":"a", "@type":"Person"}, {"givenName":"a", "@type":"Person"}]}),
+    ({"project":{"authors":{"givenName":"a", "a":"b"}}}, {"author":{"givenName":"a", "@type":"Person"}}),
+    ({"project":{"authors":{"a":"b"}}}, {}),
+    ({"project":{"authors":[{"a":"a"}, {"givenName":"a"}]}}, {"author":{"givenName":"a", "@type":"Person"}}),
+    ({"project":{"authors":[{"a":"b"}]}}, {})
+])
+def test_read_from_toml(in_data, out_data, toml_file):
+    toml.dump(in_data, open(toml_file, "w", encoding="utf8"))
+    assert harvest.read_from_toml(str(toml_file)) == out_data
+
+@pytest.mark.parametrize("in_data", [
+    ({"project": {"authors":"a"}}), ({"tool.poetry": {"authors":"a"}}),
+    ({"project": {"authors":["a"]}}), ({"tool.poetry": {"authors":["a"]}}),
+    ({"project": {"name":"a"}, "tool.poetry": {"name":"a"}})
+])
+def test_read_from_toml_with_error(in_data, toml_file):
+    toml.dump(in_data, open(toml_file, "w", encoding="utf8"))
+    with pytest.raises(ValueError):
+        harvest.read_from_toml(str(toml_file))
