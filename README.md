@@ -23,7 +23,7 @@ The hermes harvest plugin for git
 Clone Hermes project
 
 ```bash
-  git clone https://github.com/hermes-hmc/hermes
+  git clone https://github.com/hermes-hmc/hermes.git
 ```
 
 Go to the project directory
@@ -41,7 +41,7 @@ Make a python package out of it
 Clone the project
 
 ```bash
-  git clone https://github.com/hermes-hmc/hermes-python
+  git clone https://github.com/hermes-hmc/hermes-python.git
 ```
 
 Go to the project directory
