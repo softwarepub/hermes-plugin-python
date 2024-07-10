@@ -1,65 +1,46 @@
-# SPDX-FileCopyrightText: 2024 German Aerospace Center (DLR)
-#
-# SPDX-License-Identifier: CC0-1.0
+[build-system]
+requires = ["setuptools >= 70.1.1"]
+build-backend = "setuptools.build_meta"
 
-# SPDX-FileContributor: Michael Meinel
-
-[tool.poetry]
-# Reference at https://python-poetry.org/docs/pyproject/
-name = "hermes-toml"
-version = "0.8.0"
-license = "Apache-2.0"
+[project]
+name = "hermes-plugin-python"
+dynamic = ["version"]
+version = "0.1.0"
+license = {text = "Apache-2.0"}
+readme = "README.md"
 authors = [
-    "Michael Meinel <michael.meinel@dlr.de>",
+    {name = "Michael Meinel", email = "michael.meinel@dlr.de"},
+    {name = "Michael Fritzsche"},
 ]
-
-description = "HERMES plugin for toml."
-repository = "https://github.com/hermes-hmc/hermes-python"
+description = "HERMES plugin for .toml files"
 keywords = ["publishing", "metadata", "automation"]
-
-# Stating our package explicitely here to enable
-#     a) including contrib packages in the future and
-#     b) rename the package for development snapshot releases to TestPyPI
 packages = [
     { include = "hermes_toml", from = "src" }
 ]
+requires-python = ">= 3.12.4"
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Plugins",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "hermes>=0.8.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-hermes = "^0.8.0"
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.2",
+    "pytest-cov>=3.0.0",
+    "taskipy>=1.10.3",
+    "flake8>=5.0.4",
+    "reuse>=1.1.2",
+    ]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.1.1"
-pytest-cov = "^3.0.0"
-taskipy = "^1.10.3"
-flake8 = "^5.0.4"
-reuse = "^1.1.2"
+[project.urls]
+Repository = "https://github.com/hermes-hmc/hermes-plugin-python"
 
-# Packages for developers for creating documentation
-[tool.poetry.group.docs]
-optional = true
-
-[tool.poetry.group.docs.dependencies]
-Sphinx = "^6.2.1"
-# Sphinx - Additional modules
-myst-parser = "^2.0.0"
-sphinx-book-theme = "^1.0.1"
-sphinx-favicon = "^0.2"
-sphinxcontrib-contentui = "^0.2.5"
-sphinxcontrib-images = "^0.9.4"
-sphinx-icon = "^0.1.2"
-sphinx-autobuild = "^2021.3.14"
-sphinx-autoapi = "^3.0.0"
-sphinxemoji = "^0.2.0"
-sphinxext-opengraph = "^0.6.3"
-sphinxcontrib-mermaid="^0.8.1"
-sphinx-togglebutton="^0.3.2"
-
-[tool.poetry.plugins."hermes.harvest"]
+[project.entry-points."hermes.harvest"]
 cff = "hermes.commands.harvest.cff:CffHarvestPlugin"
 codemeta = "hermes.commands.harvest.codemeta:CodeMetaHarvestPlugin"
 toml = "hermes_toml.harvest:TomlHarvestPlugin"
-
-[build-system]
-requires = ["poetry-core>=1.2.0"]
-build-backend = "poetry.core.masonry.api"
