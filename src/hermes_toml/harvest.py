@@ -4,6 +4,7 @@ import os
 import pathlib
 import toml
 
+from contextlib import chdir
 from email.utils import getaddresses
 from pydantic import BaseModel
 
@@ -39,14 +40,14 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         path = command.args.path
         old_path = pathlib.Path.cwd()
         if path != old_path:
-            os.chdir(path)
+            chdir(path)
 
         #harvesting the data from the .toml file specified in the Settings class
         data = self.read_from_toml(command.settings.toml.filename)
 
         #resetting the working directory
         if path != old_path:
-            os.chdir(old_path)
+            chdir(old_path)
 
         #returning the harvested data and some metadata
         return data, {"filename": command.settings.toml.filename}
