@@ -185,7 +185,7 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
                     #try to parse the string
                     try:
                         [(name, email)] = getaddresses([person])
-                        return cls.remove_forbidden_keys({"name":name, "email":email})
+                        return_list.append(cls.remove_forbidden_keys({"name":name, "email":email}))
                     except ValueError as exc:
                         raise ValueError("Wrong string format for name (and email).") from exc
 
