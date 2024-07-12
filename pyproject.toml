@@ -4,7 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hermes-plugin-python"
-dynamic = ["version"]
 version = "0.1.0"
 license = {text = "Apache-2.0"}
 readme = "README.md"
