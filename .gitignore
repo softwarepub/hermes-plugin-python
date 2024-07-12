@@ -11,3 +11,4 @@ src/hermes_toml/util/__pycache__/
 __pycache__/
 hermes.toml
 .hermes/
+.coverage
