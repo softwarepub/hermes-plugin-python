@@ -1,3 +1,10 @@
+# SPDX-FileCopyrightText: 2024 German Aerospace Center (DLR)
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# SPDX-FileContributor: Michael Meinel
+# SPDX-FileContributor: Michael Fritzsche
+
 [build-system]
 requires = ["setuptools >= 70.1.1"]
 build-backend = "setuptools.build_meta"
@@ -40,3 +47,7 @@ Repository = "https://github.com/hermes-hmc/hermes-plugin-python"
 cff = "hermes.commands.harvest.cff:CffHarvestPlugin"
 codemeta = "hermes.commands.harvest.codemeta:CodeMetaHarvestPlugin"
 toml = "hermes_toml.harvest:TomlHarvestPlugin"
+
+[tool.setuptools]
+packages = ["hermes_toml"]
+package-dir = {"" = "src"}
