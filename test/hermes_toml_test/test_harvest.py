@@ -1,3 +1,10 @@
+# SPDX-FileCopyrightText: 2024 German Aerospace Center (DLR)
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# SPDX-FileContributor: Michael Meinel
+# SPDX-FileContributor: Michael Fritzsche
+
 import pytest
 import toml
 from hermes_toml.harvest import TomlHarvestPlugin
