@@ -31,4 +31,4 @@ jobs:
         pip install -e .[dev]
     - name: Test with pytest
       run: |
-        pytest --cov=src test/hermes_toml_test
+        pytest --cov=src test/hermes_toml_test --cov-fail-under=90
