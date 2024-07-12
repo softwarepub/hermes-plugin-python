@@ -29,4 +29,4 @@ jobs:
     - name: Test with pytest
       run: |
         pytest $(git ls-files 'test/*.py')
-        pytest --cov=src/hermes_toml test/hermes_toml_test
+        pytest --cov=src test/hermes_toml_test
