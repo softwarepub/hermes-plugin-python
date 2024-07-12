@@ -14,9 +14,6 @@ authors = [
 ]
 description = "HERMES plugin for .toml files"
 keywords = ["publishing", "metadata", "automation"]
-packages = [
-    { include = "hermes_toml", from = "src" }
-]
 requires-python = ">= 3.12.4"
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -44,3 +41,7 @@ Repository = "https://github.com/hermes-hmc/hermes-plugin-python"
 cff = "hermes.commands.harvest.cff:CffHarvestPlugin"
 codemeta = "hermes.commands.harvest.codemeta:CodeMetaHarvestPlugin"
 toml = "hermes_toml.harvest:TomlHarvestPlugin"
+
+[tool.setuptools]
+packages = ["hermes_toml"]
+package-dir = {"" = "src"}
