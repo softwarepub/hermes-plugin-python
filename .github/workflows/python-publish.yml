@@ -1,10 +1,9 @@
-# This workflow will upload a Python Package using Twine when a release is created
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
+# SPDX-FileCopyrightText: 2024 German Aerospace Center (DLR)
+#
+# SPDX-License-Identifier: CC0-1.0
 
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
+# SPDX-FileContributor: Michael Meinel
+# SPDX-FileContributor: Michael Fritzsche
 
 name: Upload Python Package
 
