@@ -28,5 +28,4 @@ jobs:
         pip install .[dev]
     - name: Test with pytest
       run: |
-        pytest $(git ls-files 'test/*.py')
-        pytest --cov=. test/hermes_toml_test
+        pytest --cov=src test/hermes_toml_test
