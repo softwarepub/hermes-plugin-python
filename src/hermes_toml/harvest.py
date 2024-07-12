@@ -1,11 +1,10 @@
 """A hermes harvest plugin that harvests the .toml file of the project"""
 
-import os
-import pathlib
-import toml
-
 from contextlib import chdir
 from email.utils import getaddresses
+
+import pathlib
+import toml
 from pydantic import BaseModel
 
 from hermes.commands.harvest.base import HermesHarvestCommand, HermesHarvestPlugin
@@ -180,8 +179,8 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
                     try:
                         [(name, email)] = getaddresses([person])
                         return cls.remove_forbidden_keys({"name":name, "email":email})
-                    except ValueError:
-                        raise ValueError("Wrong string format for name (and email).")
+                    except ValueError as exc:
+                        raise ValueError("Wrong string format for name (and email).") from exc
 
                 else:
                     #if the person isn't a dictionary raise an Error
@@ -197,13 +196,13 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
             #the 'person' may be an empty dictionary if all keys are incorrect
             return cls.remove_forbidden_keys(persons)
 
-        elif isinstance(persons, str):
+        if isinstance(persons, str):
             #try to parse the string
             try:
                 [(name, email)] = getaddresses([persons])
                 return cls.remove_forbidden_keys({"name":name, "email":email})
-            except ValueError:
-                raise ValueError("Wrong string format for name (and email).")
+            except ValueError as exc:
+                raise ValueError("Wrong string format for name (and email).") from exc
 
         #raise an error if the persons data is not in the right format
         raise ValueError("A person must be a dict or special string.")
