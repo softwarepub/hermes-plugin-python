@@ -49,7 +49,9 @@ def toml_file(tmp_path_factory):
     ({"project":{"authors":{"givenName":"a", "a":"b"}}}, {"author":{"givenName":"a", "@type":"Person"}}),
     ({"project":{"authors":{"a":"b"}}}, {}),
     ({"project":{"authors":[{"a":"a"}, {"givenName":"a"}]}}, {"author":{"givenName":"a", "@type":"Person"}}),
-    ({"project":{"authors":[{"a":"b"}]}}, {})
+    ({"project":{"authors":[{"a":"b"}]}}, {}),
+    ({"project":{"authors":["abc def<abc.def@dlr.com>"]}}, {"author":{"name":"abc def", "email": "abc.def@dlr.com", "@type": "Person"}}),
+    ({"project":{"authors":"abc def<abc.def@dlr.com>"}}, {"author":{"name":"abc def", "email": "abc.def@dlr.com", "@type": "Person"}})
 ])
 def test_read_from_toml(in_data, out_data, toml_file):
     toml.dump(in_data, open(toml_file, "w", encoding="utf8"))
@@ -58,7 +60,9 @@ def test_read_from_toml(in_data, out_data, toml_file):
 @pytest.mark.parametrize("in_data", [
     ({"project": {"authors":1}}), ({"tool": {"poetry": {"authors":1}}}),
     ({"project": {"authors":[1]}}), ({"tool": {"poetry": {"authors":[1]}}}),
-    ({"project": {"name":"a"}, "tool": {"poetry": {"name":"a"}}})
+    ({"project": {"name":"a"}, "tool": {"poetry": {"name":"a"}}}),
+    ({"project": {"authors":["as<as>as"]}}),
+    ({"project": {"authors":"as<as>as"}})
 ])
 def test_read_from_toml_with_error(in_data, toml_file):
     toml.dump(in_data, open(toml_file, "w", encoding="utf8"))
