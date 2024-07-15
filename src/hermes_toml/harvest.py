@@ -42,18 +42,10 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
     def __call__(self, command: HermesHarvestCommand):
         """start of the process of harvesting the .toml file"""
 
-        #set the working directory to the correct location
-        path = command.args.path
-        old_path = pathlib.Path.cwd()
-        if path != old_path:
-            chdir(path)
-
-        #harvesting the data from the .toml file specified in the Settings class
-        data = self.read_from_toml(command.settings.toml.filename)
-
-        #resetting the working directory
-        if path != old_path:
-            chdir(old_path)
+        #set the working directory temporary to the correct location
+        with chdir(command.args.path):
+            #harvesting the data from the .toml file specified in the Settings class
+            data = self.read_from_toml(command.settings.toml.filename)
 
         #returning the harvested data and some metadata
         return data, {"filename": command.settings.toml.filename}
