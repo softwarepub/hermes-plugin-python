@@ -10,7 +10,6 @@
 from contextlib import chdir
 from email.utils import getaddresses
 
-import pathlib
 import toml
 from pydantic import BaseModel
 
