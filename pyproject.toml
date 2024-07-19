@@ -1,53 +1,39 @@
-# SPDX-FileCopyrightText: 2024 German Aerospace Center (DLR)
-#
-# SPDX-License-Identifier: CC0-1.0
-
-# SPDX-FileContributor: Michael Meinel
-# SPDX-FileContributor: Michael Fritzsche
-
 [build-system]
-requires = ["setuptools >= 70.1.1"]
+requires = [ "setuptools >= 70.1.1",]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "hermes-plugin-python"
-dynamic = ["version"]
-license = {text = "Apache-2.0"}
+version = "0.1.0"
 readme = "README.md"
-authors = [
-    {name = "Michael Meinel", email = "michael.meinel@dlr.de"},
-    {name = "Michael Fritzsche"},
-]
 description = "HERMES plugin for .toml files"
-keywords = ["publishing", "metadata", "automation"]
+keywords = [ "publishing", "metadata", "automation",]
 requires-python = ">= 3.12.4"
-classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
-    "Environment :: Plugins",
-    "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
-]
-dependencies = [
-    "hermes>=0.8.0",
-]
+classifiers = [ "Development Status :: 2 - Pre-Alpha", "Environment :: Plugins", "Programming Language :: Python :: 3", "Operating System :: OS Independent",]
+dependencies = [ "hermes>=0.8.0",]
+[[project.authors]]
+name = "Michael Meinel"
+email = "michael.meinel@dlr.de"
+
+[[project.authors]]
+name = "Michael Fritzsche"
+
+[project.license]
+text = "Apache-2.0"
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=8.2.2",
-    "pytest-cov>=3.0.0",
-    "taskipy>=1.10.3",
-    "flake8>=5.0.4",
-    "reuse>=1.1.2",
-    ]
+dev = [ "pytest>=8.2.2", "pytest-cov>=3.0.0", "taskipy>=1.10.3", "flake8>=5.0.4", "reuse>=1.1.2",]
 
 [project.urls]
 Repository = "https://github.com/hermes-hmc/hermes-plugin-python"
+
+[tool.setuptools]
+packages = [ "hermes_toml",]
 
 [project.entry-points."hermes.harvest"]
 cff = "hermes.commands.harvest.cff:CffHarvestPlugin"
 codemeta = "hermes.commands.harvest.codemeta:CodeMetaHarvestPlugin"
 toml = "hermes_toml.harvest:TomlHarvestPlugin"
 
-[tool.setuptools]
-packages = ["hermes_toml"]
-package-dir = {"" = "src"}
+[tool.setuptools.package-dir]
+"" = "src"
