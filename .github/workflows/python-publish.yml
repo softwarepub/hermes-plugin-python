@@ -34,12 +34,13 @@ jobs:
     - name: Update version number
       run: |
           # Note: the following account information will not work on GHES
+          git checkout HEAD^
           git config user.name "github-actions[bot]"
           git config user.email ""
           python increment_version.py
           git add .
           git commit -m "generated"
-          git push
+          git push origin HEAD:main
     - name: Build package
       run: python -m build
     - name: Publish package
