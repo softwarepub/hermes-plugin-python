@@ -1,17 +1,13 @@
-# SPDX-FileCopyrightText: 2024 German Aerospace Center (DLR)
-#
 # SPDX-License-Identifier: CC0-1.0
-
-# SPDX-FileContributor: Michael Meinel
-# SPDX-FileContributor: Michael Fritzsche
-
+#
+# SPDX-FileCopyrightText: 2024 German Aerospace Center (DLR)
 [build-system]
 requires = [ "setuptools >= 70.1.1",]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "hermes-plugin-python"
-version = "0.1.7"
+version = "0.1.8"
 readme = "README.md"
 description = "HERMES plugin for .toml files"
 keywords = [ "publishing", "metadata", "automation",]
