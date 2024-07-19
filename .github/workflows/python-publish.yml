@@ -34,7 +34,6 @@ jobs:
     - name: Update version number
       run: |
           # Note: the following account information will not work on GHES
-          git checkout HEAD^
           git config user.name "github-actions[bot]"
           git config user.email ""
           python increment_version.py
