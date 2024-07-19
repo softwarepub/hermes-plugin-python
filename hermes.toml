@@ -1,0 +1,9 @@
+[harvest]
+sources = ["toml"]
+
+[harvest.toml]
+from_branch = "develop"
+
+[deposit.invenio_rdm]
+site_url = "https://sandbox.zenodo.org"
+access_right = "open"

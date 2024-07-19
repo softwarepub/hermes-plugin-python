@@ -9,6 +9,5 @@ src/hermes_toml/__pycache__/
 src/hermes_toml/util/__pycache__/
 .pytest_cache/
 __pycache__/
-hermes.toml
 .hermes/
 .coverage
