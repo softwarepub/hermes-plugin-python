@@ -8,9 +8,8 @@
 name: Software publication on Zenodo Sandbox
 
 on:
-  push:
-    tags:
-      - "*"
+  repository_dispatch:
+    types: [run_zenodo]
 
 jobs:
   hermes-plugin-python:
