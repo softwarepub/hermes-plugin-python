@@ -31,10 +31,17 @@ jobs:
         python -m pip install --upgrade pip
         pip install build
         pip install toml
-    - name: Build package
+    - name: Update version number
       run: |
-        python increment_version.py
-        python -m build
+          # Note: the following account information will not work on GHES
+          git config user.name "github-actions[bot]"
+          git config user.email ""
+          python increment_version.py
+          git add .
+          git commit -m "generated"
+          git push
+    - name: Build package
+      run: python -m build
     - name: Publish package
       uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
       with:
