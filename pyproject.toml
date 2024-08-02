@@ -14,7 +14,7 @@ version = "0.1.8"
 readme = "README.md"
 description = "HERMES plugin for .toml files"
 keywords = [ "publishing", "metadata", "automation",]
-requires-python = ">= 3.12.4"
+requires-python = ">= 3.8"
 classifiers = [ "Development Status :: 2 - Pre-Alpha", "Environment :: Plugins", "Programming Language :: Python :: 3", "Operating System :: OS Independent",]
 dependencies = [ "hermes>=0.8.0",]
 [[project.authors]]
