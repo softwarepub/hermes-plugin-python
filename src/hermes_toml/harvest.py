@@ -7,7 +7,7 @@
 
 """A hermes harvest plugin that harvests the .toml file of the project"""
 
-from contextlib import chdir
+from os import chdir, getcwd
 from email.utils import getaddresses
 
 import toml
@@ -28,7 +28,7 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         "project": [
             ("name", "name"), ("version", "version"), ("description", "description"),
             ("runtimePlatform", "requires-python"), ("author", "authors"),
-            ("maintainer", "maintainers"), ("keywords", "keywords")
+            ("maintainer", "maintainers"), ("keywords", "keywords"), ("license", "license")
         ],
         "poetry": [
             ("name", "name"), ("version", "version"), ("description", "description"),
@@ -42,9 +42,13 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         """start of the process of harvesting the .toml file"""
 
         #set the working directory temporary to the correct location
-        with chdir(command.args.path):
-            #harvesting the data from the .toml file specified in the Settings class
-            data = self.read_from_toml(command.settings.toml.filename)
+        old_dir = getcwd()
+        chdir(command.args.path)
+
+        #harvesting the data from the .toml file specified in the Settings class
+        data = self.read_from_toml(command.settings.toml.filename)
+
+        chdir(old_dir)
 
         #returning the harvested data and some metadata
         return data, {"filename": command.settings.toml.filename}
@@ -107,6 +111,8 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
                     if not persons is None:
                         ret_data[field1] = persons
 
+                elif field1 == "license":
+                    ret_data[field1] = table[field2].get("text", None)
                 else:
                     #add the data of a field that needs no processing
                     ret_data[field1] = table[field2]
