@@ -11,42 +11,54 @@ from os import chdir, getcwd
 from email.utils import getaddresses
 
 import toml
+import re
 from pydantic import BaseModel
 
+#from hermes.model import SoftwareMetadata
 from hermes.commands.harvest.base import HermesHarvestCommand, HermesHarvestPlugin
 
 class TomlHarvestSettings(BaseModel):
-    """Settings class for this plugin"""
+    """
+    Settings class for this plugin
+    """
+
     filename: str = 'pyproject.toml'
 
 
 class TomlHarvestPlugin(HermesHarvestPlugin):
-    """Base class for the hermes plugin that harvests .toml files"""
+    """
+    Base class for the hermes plugin that harvests .toml files
+    """
 
     settings_class = TomlHarvestSettings
-    table_with_mapping = {
-        "project": [
-            ("name", "name"), ("version", "version"), ("description", "description"),
-            ("runtimePlatform", "requires-python"), ("author", "authors"),
-            ("maintainer", "maintainers"), ("keywords", "keywords"), ("license", "license")
-        ],
-        "poetry": [
-            ("name", "name"), ("version", "version"), ("description", "description"),
-            ("author", "authors"), ("maintainer", "maintainers"), ("url", "homepage"),
-            ("codeRepository", "repository"), ("keywords", "keywords")
-        ]
+    easy_mappings = {
+        "project": {
+            "name": "schema:name", "version": "schema:version", "description": "schema:description",
+            "keywords": "schema:keywords"
+        },
+        "poetry": {
+            "name": "schema:name", "version": "schema:version", "description": "schema:description",
+            "keywords": "schema:keywords", "repository": "schema:CodeRepository"
+        },
+        "flit": {
+            "keywords": "schema:keywords", "dist-name": "schema:name",
+            "module": "schema:alternateName"
+        }
     }
-    allowed_keys_for_person = ["givenName", "lastName", "email", "@id", "@type", "name"]
 
     def __call__(self, command: HermesHarvestCommand):
-        """start of the process of harvesting the .toml file"""
+        """
+        start of the process of harvesting the .toml file
+        invoked when hermes harvest is run and this module is registered as a harvester
+        """
 
         #set the working directory temporary to the correct location
         old_dir = getcwd()
         chdir(command.args.path)
 
         #harvesting the data from the .toml file specified in the Settings class
-        data = self.read_from_toml(command.settings.toml.filename)
+        data = {}#SoftwareMetadata()
+        self.read_from_toml(command.settings.toml.filename, data)
 
         chdir(old_dir)
 
@@ -54,174 +66,396 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         return data, {"filename": command.settings.toml.filename}
 
     @classmethod
-    def read_from_toml(cls, file):
-        """Read and process the data inside the .toml file"""
+    def read_from_toml(cls, file, data):
+        """
+        Open the given .toml file and write its contents in the correct JSON-LD format into the
+        given SoftwareMetadata object.
+        Harvests the data which is in the tables of the most common buildtools or the project table.
+
+        Parameter
+        ---------
+        file:
+            The path to the .toml file to be harvested.
+        data:
+            The SoftwareMetadata object the data is to be written to
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        Nothing
+        """
 
         #load the toml file as a dictionary
-        data  = toml.load(file)
+        try:
+            if not isinstance(toml_data := toml.load(file), dict):
+                return
+        except Exception as exc:
+            raise type(exc)(f"Something went wrong while reading the given file {file}") from exc
 
-        ret_data = {}
+        # harvest project table
+        project_data = toml_data.get("project")
+        if isinstance(project_data, dict):
+            cls.handle_project_table(project_data, data)
 
-        #iterate over each table
-        #read it's information and store it according to the mapping
-        #if more than one table existis raise an error as
-        #the information could be overlapping and there should only be one table
-        for table, mapping in cls.table_with_mapping.items():
-            #choose correct dictionary representing the table
-            if table == "project":
-                table = data.get(table)
-            else:
-                temp = data.get("tool")
-                if temp is None:
-                    continue
-                table = temp.get(table)
+        if not isinstance(tool_table := toml_data.get("tool"), dict):
+            return
 
-            #check if the table exists
-            if not table is None:
-                #if the table exists
-                if len(ret_data.keys()) != 0:
-                    raise ValueError("Both project and tool.poetry table exist.")
-                #read the data from the table
-                ret_data = cls.read_from_one_table(table, mapping)
+        # harvest tool.poetry table
+        poetry_data = tool_table.get("poetry")
+        if isinstance(poetry_data, dict):
+            cls.handle_poetry_table(poetry_data, data)
 
-        #return the result
-        return ret_data
+        # harvest tool.flit.metadata table
+        flit_data = tool_table.get("flit")
+        if isinstance(flit_data, dict) and isinstance(flit_data := flit_data.get("metadata"), dict):
+            cls.handle_flit_table(flit_data, data)
 
     @classmethod
-    def read_from_one_table(cls, table, mapping):
-        """Read and process the data of one table inside the .toml file"""
+    def handle_project_table(cls, table: dict, data):
+        """
+        Extract all metadata from the given table assuming it follows the PEP standard into the
+        given SoftwareMetadata object.
 
-        ret_data = {}
+        Parameter
+        ---------
+        table: dict
+            The content of the project table of the pyproject.toml following the PEP standard in a
+            python dictionary.
+        data: SoftwareMetadata
+            The SoftwareMetadata object the extracted data is to be written to.
 
-        #iterate over each mapping
-        for (field1, field2) in mapping:
-            if not table.get(field2) is None:
-                #if this field exists
-                #some cases need additional processing
-                if field2 == "requires-python":
-                    #add python to the python version number for the runtime platform
-                    ret_data[field1] = "Python " + table[field2]
+        Returns
+        -------
+        None
 
-                elif field1 in ["author", "maintainer"]:
-                    #the integrity of the format of the person(s) is assured
-                    persons = cls.handle_person_in_unknown_format(table[field2])
+        Raises
+        ------
+        Nothing
+        """
 
-                    #store the (corrected) format of the person(s) data
-                    persons = cls.handle_different_possibilities_for_persons(persons)
-                    if not persons is None:
-                        ret_data[field1] = persons
-
-                elif field1 == "license":
-                    ret_data[field1] = table[field2].get("text", None)
-                else:
-                    #add the data of a field that needs no processing
-                    ret_data[field1] = table[field2]
-
-            else:
-                #if it doesn't exist
+        # handle all easy mappings
+        for key, dest_key in cls.easy_mappings.get("project").items():
+            if (value := table.get(key, None)) is None:
                 continue
+            if (isinstance(value, str) or
+                isinstance(value, list) and all(isinstance(val, str) for val in value)):
+                data[dest_key] = value
 
-        #return the important data of the table
-        return ret_data
+        # check authors
+        if not (authors := table.get("authors")) is None:
+            cls.handle_person(authors, "schema:author", data)
+
+        # check maintainer
+        if not (maintainer := table.get("maintainers")) is None:
+            cls.handle_person(maintainer, "schema:maintainer", data)
+
+        # check urls
+        if not (urls := table.get("urls")) is None:
+            cls.handle_urls(urls, data)
 
     @classmethod
-    def handle_different_possibilities_for_persons(cls, persons):
-        """Simplify the data structure of the persons"""
+    def handle_poetry_table(cls, table: dict, data):
+        """
+        Extract all metadata from the given table assuming it follows the deprecated standard of
+        poetry into the given SoftwareMetadata object.
 
-        #check if it is one person in the right format or none
-        if isinstance(persons, dict):
-            if len(persons.keys()) > 0:
-                #add the @type field
-                persons["@type"] = "Person"
+        Parameter
+        ---------
+        table: dict
+            The content of the project table of the pyproject.toml following the deprecated standard
+            of poetry in a python dictionary.
+        data: SoftwareMetadata
+            The SoftwareMetadata object the extracted data is to be written to.
 
-            else:
-                #set to None if there is no persons data to store
-                persons = None
+        Returns
+        -------
+        None
 
-        #check if how many persons are in the list
-        elif isinstance(persons, list):
+        Raises
+        ------
+        Nothing
+        """
+
+        # handle all easy mappings
+        for key, dest_key in cls.easy_mappings.get("poetry"):
+            if (value := table.get(key, None)) is None:
+                continue
+            if (isinstance(value, str) or
+                isinstance(value, list) and all(isinstance(val, str) for val in value)):
+                data[dest_key] = value
+
+        # check authors
+        if not (authors := table.get("authors")) is None:
+            cls.handle_person(authors, "schema:author", data)
+
+        # check maintainer
+        if not (maintainer := table.get("maintainers")) is None:
+            cls.handle_person(maintainer, "schema:maintainer", data)
+
+        # check urls
+        if not (urls := table.get("urls")) is None:
+            cls.handle_urls(urls, data)
+
+
+    @classmethod
+    def handle_flit_table(cls, table: dict, data):
+        """
+        Extract all metadata from the given table assuming it follows the deprecated standard of
+        flit into the given SoftwareMetadata object.
+
+        Parameter
+        ---------
+        table: dict
+            The content of the project table of the pyproject.toml following the deprecated standard
+            of flit in a python dictionary.
+        data: SoftwareMetadata
+            The SoftwareMetadata object the extracted data is to be written to.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        Nothing
+        """
+
+        # handle all easy mappings
+        for key, dest_key in cls.easy_mappings.get("flit"):
+            if (value := table.get(key, None)) is None:
+                continue
+            if (isinstance(value, str) or
+                isinstance(value, list) and all(isinstance(val, str) for val in value)):
+                data[dest_key] = value
+
+        # check author
+        possible_author = {"name": table.get("author", ""), "email": table.get("author-email", "")}
+        cls.handle_person(possible_author, "schema:author", data)
+
+        # check maintainer
+        possible_maintainer = {"name": table.get("maintainer", ""),
+                               "email": table.get("maintainer-email", "")}
+        cls.handle_person(possible_maintainer, "schema:maintainer", data)
+
+    @classmethod
+    def handle_person(cls, person_data, key: str, data):
+        """
+        Handle one or multiple persons. Extract their email and name and then store it in the
+        provided SoftwareMetadata object with the given key.
+
+        Parameter
+        ---------
+        person_data: Any
+            The data in the raw format of one or multiple persons.
+        key: str
+            The key for storing the results in the SoftwareMetadata object.
+        data: SoftwareMetadata
+            The SoftwareMetadata object the data is to be stored in.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        Nothing
+        """
+        if isinstance(person_data, list):
+            # try to extract the name and email from all persons in the list
+            # and add the resulting list as a list or a single item to the SoftwareMetadata object
+            persons = []
+            for person in person_data:
+                # check if person contains data and store it in the correct format
+                if not (person := cls.extract_personal_data(person)) == {}:
+                    persons.append(person)
             if len(persons) > 1:
-                #add for every person the @type field
-                for person in persons:
-                    person["@type"] = "Person"
-
+                data[key] = persons
             elif len(persons) == 1:
-                #add the @type field
-                persons[0]["@type"] = "Person"
-
-                #remove the list as it is only one peron inside
-                persons = persons[0]
-
-            else:
-                #set to None if there is no persons data to store
-                persons = None
-
-        #return the persons in the (corrected) format
-        return persons
+                data[key] = persons[0]
+        elif not (person := cls.extract_personal_data(person_data)) == {}:
+            # add the persons data to the SoftwareMetadata object
+            data[key] = person
 
     @classmethod
-    def handle_person_in_unknown_format(cls, persons):
-        """Process the persons in the unkown format"""
+    def extract_personal_data(cls, person) -> dict[str, str]:
+        """
+        Extract an email address and a name from the given data in an unknown format that may
+        represent a person.
+        Recognized formats are a dict with keys name and email or a string ('name <email>').
+        If no data can be extracted return an empty dictionary else one with the keys name and email
+        and @type for valid JSON-LD but only if at least one of name and email are not empty.
 
-        #check wheter it is one or are more persons
-        if isinstance(persons, list):
-            #in case of potentially at least two persons
-            return_list = []
-            #for each person
-            for person in persons:
+        Parameter
+        ---------
+        person: Any
+            The data of the potentiell person in an unknown format.
 
-                #check if the datatype is correct
-                if isinstance(person, dict):
-                    #remove all attributes that aren't allowed
-                    temp = cls.remove_forbidden_keys(person)
-                    #if this leads to the dataset losing all values don't add it to the return list
-                    if len(temp.keys()) > 0:
-                        return_list.append(temp)
+        Returns
+        -------
+        dict[str, str]
+            An empty dictionary if no name and email could be extracted and one containg the keys
+            name, email and type but only those contain a value.
 
-                elif isinstance(person, str):
-                    #try to parse the string
-                    try:
-                        [(name, email)] = getaddresses([person])
-                        return_list.append(cls.remove_forbidden_keys({"name":name, "email":email}))
-                    except ValueError as exc:
-                        raise ValueError("Wrong string format for name (and email).") from exc
+        Raises
+        ------
+        Nothing
+        """
 
-                else:
-                    #if the person isn't a dictionary raise an Error
-                    raise ValueError("A person must be a dict or special string.")
+        if not isinstance(person, (str, dict)):
+            return {}
+        # retrieve the name and email from the string or dict
+        if isinstance(person, str):
+            [(name, email)] = getaddresses([person])
+        else:
+            name, email = person.get("name", ""), person.get("email", "")
+            if not isinstance(name, str):
+                name = ""
+            if not isinstance(email, str):
+                email = ""
 
-            #return the person(s)
-            return return_list
-
-        #if it is only one or no person
-        #check for the right datatype
-        if isinstance(persons, dict):
-            #if it is correct return the person with all forbidden keys
-            #the 'person' may be an empty dictionary if all keys are incorrect
-            return cls.remove_forbidden_keys(persons)
-
-        if isinstance(persons, str):
-            #try to parse the string
-            try:
-                [(name, email)] = getaddresses([persons])
-                return cls.remove_forbidden_keys({"name":name, "email":email})
-            except ValueError as exc:
-                raise ValueError("Wrong string format for name (and email).") from exc
-
-        #raise an error if the persons data is not in the right format
-        raise ValueError("A person must be a dict or special string.")
-
-    @classmethod
-    def remove_forbidden_keys(cls, person):
-        """Remove forbidden keys from the person-data-dictionary"""
-
-        #the keys are extracted as the dictionary may be resized
-        keys = list(person.keys())
-
-        #check for every key if it is allowed and if not remove it
-        for key in keys:
-            if not key in cls.allowed_keys_for_person:
-                del person[key]
-
-        #return the persons data
+        # create an object with name, email and @type if name or email is not empty
+        person = {}
+        if not name == "":
+            person["name"] = name
+        # try to validate the email address
+        if re.fullmatch("([a-z]|[A-Z]|[0-9])+(.([a-z]|[A-Z]|[0-9])+)*@([a-z]|[A-Z]|[0-9])+." \
+        "([a-z]|[A-Z]|[0-9])+(.([a-z]|[A-Z]|[0-9])+)*", email):
+            person["email"] = email
+        if not person:
+            return {}
+        person["@type"] = "https://schema.org/Person"
         return person
+
+    @classmethod
+    def handle_pypi_classifieres(cls, classifiers: str | list[str], data):
+        """
+        Add the given pypi classifiers to the given SoftwareMetadata object using the correct keys.
+
+        Parameter
+        ---------
+        classifiers: str |list[str]
+            The classifier or the list of multiple (as specified by pypi).
+        data: SoftwareMetadata
+            The SoftwareMetadata object in which the classifiers are to be stored.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        Nothing
+        """
+
+        if not isinstance(classifiers, (str, list)):
+            return
+        if isinstance(classifiers, str):
+            classifiers = [classifiers]
+
+        sorted_classifiers = {
+            "schema:targetProduct": [], "schema:audience": [], "schema:license": [],
+            "schema:inLanguage": [], "schema:programming Language": [], "schema:about": []
+        }
+        # iterate over all classifiers and put them into the correct buckets
+        for classifier in classifiers:
+            if not isinstance(str):
+                continue
+            classifier = classifier.split(" :: ")
+            if len(classifier) < 2:
+                continue
+            if classifier[0] == "Operating System":
+                temp = {"@type": "SoftwareApplication", "name": classifier[-1]}
+                sorted_classifiers["schema:targetProduct"].append(temp)
+            elif classifier[0] == "Intended Audience":
+                temp = {"@type": "Audience", "name": classifier[-1]}
+                sorted_classifiers["schema:audience"].append(temp)
+            elif (classifier[0] == "License" and
+                  not (classifier[1] == "OSI Approved" and len(classifier) == 2)):
+                temp = {"@type": "CreativeWork", "name": classifier[-1]}
+                sorted_classifiers["schema:license"].append(temp)
+            elif classifier[0] == "Natural Language":
+                sorted_classifiers["schema:inLanguage"].append(classifier[-1])
+            elif classifier[0] == "Programming Language":
+                if classifier[1] == "Python" and len(classifier) > 2:
+                    if classifier[2].isdecimal():
+                        temp = f"Python {classifier[2]}"
+                    elif classifier[2] == "Free Threading":
+                        temp = "Python Free Threading" \
+                               f"{f' {classifier[3]}' if len(classifier) > 3 else ''}"
+                    elif classifier[2] == "Implementation":
+                        temp = classifier[3] if len(classifier) > 3 else "Python Implementation"
+                    sorted_classifiers["schema:programming Language"].append(temp)
+                else:
+                    sorted_classifiers["schema:programming Language"].append(classifier[-1])
+            elif classifier[0] == "Topic":
+                temp = {"@type": "Thing", "name": " ".join(classifier[1:])}
+                sorted_classifiers["schema:about"].append(temp)
+
+        # add everything to the SoftwareMetadata object
+        for key, value in sorted_classifiers.items():
+            if len(value) > 1:
+                data[key] = value
+            elif len(value) == 1:
+                data[key] = value[0]
+
+    @classmethod
+    def handle_urls(cls, urls: dict[str, str], data):
+        """
+        Sort all given urls by their label in the dictionary into the schema or codemeta field and
+        store them in the given SoftwareMetadata object.
+
+        Parameter
+        ---------
+        urls: dict[str, str]
+            The dictionary mapping a url to its label.
+        data: SoftwareMetadata
+            The SoftwareMetadata object in which the classifiers are to be stored.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        Nothing
+        """
+
+        if not isinstance(urls, dict):
+            return
+
+        sorted_urls = {
+            "schema:codeRepository": [], "schema:discussionURL": [], "buildInstructions": [],
+            "IssueTracker": [], "readme": [], "relatedLink": []
+        }
+        # iterate over the dictionaries items and add the url to the correct bucket
+        # if the key hints it to be the right one
+        for name, url in urls.items():
+            if not (isinstance(name, str) and isinstance(url, str)):
+                continue
+            name = name.lower()
+            if name.find("code") != -1 or name.find("repository") != -1:
+                sorted_urls["schema:codeRepository"].append(url)
+            elif name.find("discuss") != -1:
+                sorted_urls["schema:discussionURL"].append(url)
+            elif name.find("build") != -1 or name.find("instructions") != -1:
+                sorted_urls["buildInstructions"].append(url)
+            elif name.find("issue") != -1 or name.find("bug") != -1 or name.find("tracker") != -1:
+                sorted_urls["IssueTracker"].append(url)
+            elif name.find("readme") != -1:
+                sorted_urls["readme"].append(url)
+            else:
+                sorted_urls["relatedLink"].append(url)
+
+        # add everything to the SoftwareMetadata object
+        for key, value in sorted_urls.items():
+            if len(value) > 1:
+                data[key] = value
+            elif len(value) == 1:
+                data[key] = value[0]
+
+temp2 = {}
+TomlHarvestPlugin.read_from_toml("pyproject.toml", temp2)
+print(temp2)
