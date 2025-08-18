@@ -10,10 +10,9 @@
 from os import chdir, getcwd
 from email.utils import getaddresses
 
-import toml
 import re
+import toml
 from pydantic import BaseModel
-
 #from hermes.model import SoftwareMetadata
 from hermes.commands.harvest.base import HermesHarvestCommand, HermesHarvestPlugin
 
@@ -318,7 +317,7 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
 
         # create an object with name, email and @type if name or email is not empty
         person = {}
-        if not name == "":
+        if name != "":
             person["name"] = name
         # try to validate the email address
         if re.fullmatch("([a-z]|[A-Z]|[0-9])+(.([a-z]|[A-Z]|[0-9])+)*@([a-z]|[A-Z]|[0-9])+." \
@@ -361,7 +360,7 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         }
         # iterate over all classifiers and put them into the correct buckets
         for classifier in classifiers:
-            if not isinstance(str):
+            if not isinstance(classifier, str):
                 continue
             classifier = classifier.split(" :: ")
             if len(classifier) < 2:
@@ -455,7 +454,3 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
                 data[key] = value
             elif len(value) == 1:
                 data[key] = value[0]
-
-temp2 = {}
-TomlHarvestPlugin.read_from_toml("pyproject.toml", temp2)
-print(temp2)
