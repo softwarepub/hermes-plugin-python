@@ -354,6 +354,9 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         if isinstance(classifiers, str):
             classifiers = [classifiers]
 
+        # remove duplicates
+        classifiers = list(set(classifiers))
+
         sorted_classifiers = {
             "schema:targetProduct": [], "schema:audience": [], "schema:license": [],
             "schema:inLanguage": [], "schema:programming Language": [], "schema:about": []
@@ -365,32 +368,33 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
             classifier = classifier.split(" :: ")
             if len(classifier) < 2:
                 continue
-            if classifier[0] == "Operating System":
-                temp = {"@type": "SoftwareApplication", "name": classifier[-1]}
+            if (classifier[0] == "Operating System" and
+                not (len(classifier) == 2 and classifier[1] == "Microsoft")):
+                temp = {"@type": "schema:SoftwareApplication", "schema:name": classifier[-1]}
                 sorted_classifiers["schema:targetProduct"].append(temp)
             elif classifier[0] == "Intended Audience":
-                temp = {"@type": "Audience", "name": classifier[-1]}
+                temp = {"@type": "schema:Audience", "schema:name": classifier[-1]}
                 sorted_classifiers["schema:audience"].append(temp)
             elif (classifier[0] == "License" and
                   not (classifier[1] == "OSI Approved" and len(classifier) == 2)):
-                temp = {"@type": "CreativeWork", "name": classifier[-1]}
+                temp = {"@type": "schema:CreativeWork", "schema:name": classifier[-1]}
                 sorted_classifiers["schema:license"].append(temp)
             elif classifier[0] == "Natural Language":
                 sorted_classifiers["schema:inLanguage"].append(classifier[-1])
             elif classifier[0] == "Programming Language":
                 if classifier[1] == "Python" and len(classifier) > 2:
-                    if classifier[2].isdecimal():
-                        temp = f"Python {classifier[2]}"
-                    elif classifier[2] == "Free Threading":
+                    if classifier[2] == "Free Threading":
                         temp = "Python Free Threading" \
                                f"{f' {classifier[3]}' if len(classifier) > 3 else ''}"
                     elif classifier[2] == "Implementation":
                         temp = classifier[3] if len(classifier) > 3 else "Python Implementation"
+                    else:
+                        temp = f"Python {classifier[2]}"
                     sorted_classifiers["schema:programming Language"].append(temp)
                 else:
                     sorted_classifiers["schema:programming Language"].append(classifier[-1])
             elif classifier[0] == "Topic":
-                temp = {"@type": "Thing", "name": " ".join(classifier[1:])}
+                temp = {"@type": "schema:Thing", "schema:name": " ".join(classifier[1:])}
                 sorted_classifiers["schema:about"].append(temp)
 
         # add everything to the SoftwareMetadata object
@@ -432,7 +436,7 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         # iterate over the dictionaries items and add the url to the correct bucket
         # if the key hints it to be the right one
         for name, url in urls.items():
-            if not (isinstance(name, str) and isinstance(url, str)):
+            if (not (isinstance(name, str) and isinstance(url, str))) or url == "":
                 continue
             name = name.lower()
             if name.find("code") != -1 or name.find("repository") != -1:
@@ -450,6 +454,7 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
 
         # add everything to the SoftwareMetadata object
         for key, value in sorted_urls.items():
+            value = list(set(value))
             if len(value) > 1:
                 data[key] = value
             elif len(value) == 1:
