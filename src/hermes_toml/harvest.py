@@ -13,8 +13,9 @@ from email.utils import getaddresses
 import re
 import toml
 from pydantic import BaseModel
-#from hermes.model import SoftwareMetadata
+# from hermes.model import SoftwareMetadata
 from hermes.commands.harvest.base import HermesHarvestCommand, HermesHarvestPlugin
+
 
 class TomlHarvestSettings(BaseModel):
     """
@@ -51,17 +52,17 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         invoked when hermes harvest is run and this module is registered as a harvester
         """
 
-        #set the working directory temporary to the correct location
+        # set the working directory temporary to the correct location
         old_dir = getcwd()
         chdir(command.args.path)
 
-        #harvesting the data from the .toml file specified in the Settings class
-        data = {}#SoftwareMetadata()
+        # harvesting the data from the .toml file specified in the Settings class
+        data = {}  # SoftwareMetadata()
         self.read_from_toml(command.settings.toml.filename, data)
 
         chdir(old_dir)
 
-        #returning the harvested data and some metadata
+        # returning the harvested data and some metadata
         return data, {"filename": command.settings.toml.filename}
 
     @classmethod
@@ -87,7 +88,7 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         Nothing
         """
 
-        #load the toml file as a dictionary
+        # load the toml file as a dictionary
         try:
             if not isinstance(toml_data := toml.load(file), dict):
                 return
@@ -139,8 +140,7 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         for key, dest_key in cls.easy_mappings.get("project").items():
             if (value := table.get(key, None)) is None:
                 continue
-            if (isinstance(value, str) or
-                isinstance(value, list) and all(isinstance(val, str) for val in value)):
+            if (isinstance(value, str) or isinstance(value, list) and all(isinstance(val, str) for val in value)):
                 data[dest_key] = value
 
         # check authors
@@ -154,6 +154,10 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         # check urls
         if not (urls := table.get("urls")) is None:
             cls.handle_urls(urls, data)
+
+        # check classifiers
+        if not (classifiers := table.get("classifiers")) is None:
+            cls.handle_pypi_classifieres(classifiers, data)
 
     @classmethod
     def handle_poetry_table(cls, table: dict, data):
@@ -179,11 +183,10 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         """
 
         # handle all easy mappings
-        for key, dest_key in cls.easy_mappings.get("poetry"):
+        for key, dest_key in cls.easy_mappings.get("poetry").items():
             if (value := table.get(key, None)) is None:
                 continue
-            if (isinstance(value, str) or
-                isinstance(value, list) and all(isinstance(val, str) for val in value)):
+            if (isinstance(value, str) or isinstance(value, list) and all(isinstance(val, str) for val in value)):
                 data[dest_key] = value
 
         # check authors
@@ -198,6 +201,9 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         if not (urls := table.get("urls")) is None:
             cls.handle_urls(urls, data)
 
+        # check classifiers
+        if not (classifiers := table.get("classifiers")) is None:
+            cls.handle_pypi_classifieres(classifiers, data)
 
     @classmethod
     def handle_flit_table(cls, table: dict, data):
@@ -223,11 +229,17 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         """
 
         # handle all easy mappings
-        for key, dest_key in cls.easy_mappings.get("flit"):
+        for key, dest_key in cls.easy_mappings.get("flit").items():
             if (value := table.get(key, None)) is None:
                 continue
-            if (isinstance(value, str) or
-                isinstance(value, list) and all(isinstance(val, str) for val in value)):
+            if isinstance(value, str) and value != "":
+                data[dest_key] = value
+            elif isinstance(value, list) and len(value) != 0:
+                value = list(set([val for val in value if isinstance(val, str) and val != ""]))
+                if len(value) == 0:
+                    continue
+                if len(value) == 1:
+                    value = value[0]
                 data[dest_key] = value
 
         # check author
@@ -238,6 +250,10 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         possible_maintainer = {"name": table.get("maintainer", ""),
                                "email": table.get("maintainer-email", "")}
         cls.handle_person(possible_maintainer, "schema:maintainer", data)
+
+        # check classifiers
+        if not (classifiers := table.get("classifiers")) is None:
+            cls.handle_pypi_classifieres(classifiers, data)
 
     @classmethod
     def handle_person(cls, person_data, key: str, data):
@@ -262,6 +278,9 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         ------
         Nothing
         """
+        if not isinstance(key, str) or len(key) == 0:
+            return
+
         if isinstance(person_data, list):
             # try to extract the name and email from all persons in the list
             # and add the resulting list as a list or a single item to the SoftwareMetadata object
@@ -307,7 +326,10 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
             return {}
         # retrieve the name and email from the string or dict
         if isinstance(person, str):
-            [(name, email)] = getaddresses([person])
+            if person.find("@") != -1:
+                [(name, email)] = getaddresses([person])
+            else:
+                name, email = (person, "")
         else:
             name, email = person.get("name", ""), person.get("email", "")
             if not isinstance(name, str):
@@ -318,14 +340,14 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         # create an object with name, email and @type if name or email is not empty
         person = {}
         if name != "":
-            person["name"] = name
+            person["schema:name"] = name
         # try to validate the email address
-        if re.fullmatch("([a-z]|[A-Z]|[0-9])+(.([a-z]|[A-Z]|[0-9])+)*@([a-z]|[A-Z]|[0-9])+." \
-        "([a-z]|[A-Z]|[0-9])+(.([a-z]|[A-Z]|[0-9])+)*", email):
-            person["email"] = email
+        if re.fullmatch(r"([a-z]|[A-Z]|[0-9])+(\.([a-z]|[A-Z]|[0-9])+)*@([a-z]|[A-Z]|[0-9])+"
+                        r"\.([a-z]|[A-Z]|[0-9])+(\.([a-z]|[A-Z]|[0-9])+)*", email):
+            person["schema:email"] = email
         if not person:
             return {}
-        person["@type"] = "https://schema.org/Person"
+        person["@type"] = "schema:Person"
         return person
 
     @classmethod
@@ -368,15 +390,13 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
             classifier = classifier.split(" :: ")
             if len(classifier) < 2:
                 continue
-            if (classifier[0] == "Operating System" and
-                not (len(classifier) == 2 and classifier[1] == "Microsoft")):
+            if (classifier[0] == "Operating System" and not (len(classifier) == 2 and classifier[1] == "Microsoft")):
                 temp = {"@type": "schema:SoftwareApplication", "schema:name": classifier[-1]}
                 sorted_classifiers["schema:targetProduct"].append(temp)
             elif classifier[0] == "Intended Audience":
                 temp = {"@type": "schema:Audience", "schema:name": classifier[-1]}
                 sorted_classifiers["schema:audience"].append(temp)
-            elif (classifier[0] == "License" and
-                  not (classifier[1] == "OSI Approved" and len(classifier) == 2)):
+            elif (classifier[0] == "License" and not (classifier[1] == "OSI Approved" and len(classifier) == 2)):
                 temp = {"@type": "schema:CreativeWork", "schema:name": classifier[-1]}
                 sorted_classifiers["schema:license"].append(temp)
             elif classifier[0] == "Natural Language":
