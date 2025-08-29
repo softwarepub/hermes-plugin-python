@@ -38,7 +38,7 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         },
         "poetry": {
             "name": "schema:name", "version": "schema:version", "description": "schema:description",
-            "keywords": "schema:keywords", "repository": "schema:CodeRepository"
+            "keywords": "schema:keywords", "repository": "schema:codeRepository"
         },
         "flit": {
             "keywords": "schema:keywords", "dist-name": "schema:name",
@@ -375,6 +375,10 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
             return
         if isinstance(classifiers, str):
             classifiers = [classifiers]
+        else:
+            classifiers = [classifier for classifier in classifiers if isinstance(classifier, str)]
+            if len(classifiers) == 0:
+                return
 
         # remove duplicates
         classifiers = list(set(classifiers))
@@ -385,8 +389,6 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         }
         # iterate over all classifiers and put them into the correct buckets
         for classifier in classifiers:
-            if not isinstance(classifier, str):
-                continue
             classifier = classifier.split(" :: ")
             if len(classifier) < 2:
                 continue
