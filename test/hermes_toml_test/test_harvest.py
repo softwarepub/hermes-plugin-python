@@ -5,6 +5,7 @@
 # SPDX-FileContributor: Michael Meinel
 # SPDX-FileContributor: Michael Fritzsche
 
+import os
 import pytest
 from pytest_unordered import unordered
 import toml
@@ -279,6 +280,7 @@ def toml_file(tmp_path_factory):
 
 
 @pytest.mark.parametrize("in_data, out_data", [
+    ("", {}),
     ({"project": {"name": "a", "version": "x.x.x", "description": "abc", "keywords": ["a", "b", "c"],
                   "authors": [{"name": "ab", "email": "ab@ab.ab"}, {"name": "a", "email": "a@a.a"}],
                   "maintainers": [{"name": "ab", "email": "ab@ab.ab"}, {"name": "a", "email": "a@a.a"}],
@@ -328,12 +330,32 @@ def test_read_from_toml_success(in_data, out_data, toml_file):
     assert data == out_data
 
 
-"""
-# create different types of invalid files and save them somehow then run read_from_toml and validate the raised errors
-@pytest.mark.parametrize("in_data", [
-])
-def test_read_from_toml_error(in_data, out_data, toml_file):
+@pytest.fixture(scope="session")
+def txt_file(tmp_path_factory):
+    fn = tmp_path_factory.mktemp("data") / "test.txt"
+    return fn
 
-# test files with multiple tables e.g. project and poetry or with different data in fileds with the same meaning
-# not tested because it is unknown how these cases should be treated
+
+def test_read_from_toml_error(txt_file):
+    pre = os.path.splitext(txt_file)[0]
+    toml_file = pre + ".toml"
+    with open(txt_file, "w") as temp:
+        temp.write("a")
+    # try non toml file
+    TomlHarvestPlugin.read_from_toml(txt_file, data := {})
+    assert data == {}
+    # try non existing file
+    TomlHarvestPlugin.read_from_toml(toml_file, data := {})
+    assert data == {}
+    os.rename(txt_file, toml_file)
+    # try malformed file
+    TomlHarvestPlugin.read_from_toml(toml_file, data := {})
+    assert data == {}
+
+
+"""
+test files with multiple tables e.g. project and poetry or with different data in fileds with the same meaning
+
+not tested because it is unknown how these cases should be treated
+as the SoftwareMetadata object is not yet implemented nor its behaivior documented
 """

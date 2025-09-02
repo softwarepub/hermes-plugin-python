@@ -90,10 +90,9 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
 
         # load the toml file as a dictionary
         try:
-            if not isinstance(toml_data := toml.load(file), dict):
-                return
-        except Exception as exc:
-            raise type(exc)(f"Something went wrong while reading the given file {file}") from exc
+            toml_data = toml.load(file)
+        except Exception:
+            return
 
         # harvest project table
         project_data = toml_data.get("project")
@@ -373,12 +372,11 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
 
         if not isinstance(classifiers, (str, list)):
             return
-        if isinstance(classifiers, str):
+        if isinstance(classifiers, str) and len(classifiers.split(" :: ")) > 1:
             classifiers = [classifiers]
         else:
-            classifiers = [classifier for classifier in classifiers if isinstance(classifier, str)]
-            if len(classifiers) == 0:
-                return
+            # remove non strings and to short classifiers
+            classifiers = [clsf for clsf in classifiers if isinstance(clsf, str) and len(clsf.split(" :: ")) > 1]
 
         # remove duplicates
         classifiers = list(set(classifiers))
@@ -390,15 +388,13 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
         # iterate over all classifiers and put them into the correct buckets
         for classifier in classifiers:
             classifier = classifier.split(" :: ")
-            if len(classifier) < 2:
-                continue
-            if (classifier[0] == "Operating System" and not (len(classifier) == 2 and classifier[1] == "Microsoft")):
+            if classifier[0] == "Operating System" and not (len(classifier) == 2 and classifier[1] == "Microsoft"):
                 temp = {"@type": "schema:SoftwareApplication", "schema:name": classifier[-1]}
                 sorted_classifiers["schema:targetProduct"].append(temp)
             elif classifier[0] == "Intended Audience":
                 temp = {"@type": "schema:Audience", "schema:name": classifier[-1]}
                 sorted_classifiers["schema:audience"].append(temp)
-            elif (classifier[0] == "License" and not (classifier[1] == "OSI Approved" and len(classifier) == 2)):
+            elif classifier[0] == "License" and not (classifier[1] == "OSI Approved" and len(classifier) == 2):
                 temp = {"@type": "schema:CreativeWork", "schema:name": classifier[-1]}
                 sorted_classifiers["schema:license"].append(temp)
             elif classifier[0] == "Natural Language":
@@ -421,10 +417,9 @@ class TomlHarvestPlugin(HermesHarvestPlugin):
 
         # add everything to the SoftwareMetadata object
         for key, value in sorted_classifiers.items():
-            if len(value) > 1:
-                data[key] = value
-            elif len(value) == 1:
-                data[key] = value[0]
+            if len(value) == 0:
+                continue
+            data[key] = value if len(value) > 1 else value[0]
 
     @classmethod
     def handle_urls(cls, urls: dict[str, str], data):
