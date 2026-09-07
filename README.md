@@ -1,3 +1,14 @@
+NOTE: This repository and the associated Python package are deprecated.
+As of hermes v0.10, the Python/pyproject.toml plugin is part of the hermes codebase.
+It can be configured by adding the following code to your `hermes.toml` file:
+
+``` toml
+[harvest]
+sources = [ "toml" ]
+```
+
+No further installation is required.
+Please remove any `pip install` calls for `hermes-plugin-python` or `git+https://github.com/softwarepub/hermes-plugin-python` from your publication workflow.
 
 # Hermes harvest plugin for .toml files
 This plugin enables the harvesting of metadata stored in the .toml file of the project. It is configured to automatically harvest from "pyproject.toml". Although it can be used for every .toml file it uses the fields commonly used in .toml files for python.
